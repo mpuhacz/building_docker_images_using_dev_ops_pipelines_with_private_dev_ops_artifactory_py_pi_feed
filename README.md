@@ -2,7 +2,7 @@
 
 ![](./my_art.jpg)
 
-Building CI/CD environments with Azure DevOps Pipelines is a delightful experience. Still, since you are reading this article, there is quite a significant likelihood that you were, same as me, trying to install packages from your private DevOps Artifcatory for your Docker image. And there, things start to get a little bit more complicated.
+Building CI/CD environments with Azure DevOps Pipelines is a delightful experience. Still, since you are reading this article, there is a significant chance that you - just like myself - were trying to install packages from your private DevOps Artifcatory for your Docker image. And there things start to get a little bit more complicated.
 
 ## Problem
 
@@ -14,7 +14,7 @@ How to that?
 
 ## Authentication to Azure DevOps Artifactory
 
-Let's start with authentication to DevOps Artifactory. DevOps Pipelines come with various handy tasks, and one of them is named [PipAuthenticate](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/package/pip-authenticate?view=azure-devops). It's a very simple tool, that takes care of authentication to DevOps Artifacts Python package feeds.
+Let's start with authentication to DevOps Artifactory. DevOps Pipelines come with various handy tasks, and one of them is named [PipAuthenticate](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/package/pip-authenticate?view=azure-devops). It's a very simple tool that takes care of authentication to DevOps Artifacts Python package feeds.
 
 ```yaml
 - task: PipAuthenticate@1

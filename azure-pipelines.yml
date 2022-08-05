@@ -39,9 +39,13 @@ stages:
         command: build
         repository: $(imageRepository)
         containerRegistry: $(dockerRegistryServiceConnection)
-        arguments: --build-arg PIP_EXTRA_URL="$(artifactoryUrl)"
+        # --secret securely mounts env variable PIP_EXTRA_URL that possibly contains sensitive credentials to /run/secrets/PIP_EXTRA_URL during docker build
+        arguments: --secret id=PIP_EXTRA_URL
         tags: |
           $(tag)
+      env:
+        PIP_EXTRA_URL: $(artifactoryUrl)
+        DOCKER_BUILDKIT: 1  # required to pass secrets to docker build
 
     - task: Docker@2
       displayName: Push the image to container registry

@@ -39,15 +39,24 @@ So how this magic works? Luckily for us, all the DevOps Pipelines tasks are open
 
 The idea is simple. We want to get the `$PIP_EXTRA_INDEX_URL` variable from our build agent host and pass it to our Docker build context.
 
+## Security
+
+We can not pass `$PIP_EXTRA_INDEX_URL` to the build context as a file or as a build argument `ARG`, because
+then it will be embedded in the resulting image. `$PIP_EXTRA_INDEX_URL` is a sensitive value, because it
+potentially contains credentials.
+
+A secure way to pass it to the build context is to use a `secret` feature of [Docker BuildKit](https://docs.docker.com/develop/develop-images/build_enhancements/#new-docker-build-secret-information).
+
+
 ### Dockerfile
 
 ```docker
 FROM python:3.7-slim
 
-ARG PIP_EXTRA_URL
-
 COPY requirements.txt /tmp/
-RUN pip install -r /tmp/requirements.txt --extra-index-url $PIP_EXTRA_URL
+
+RUN --mount=type=secret,id=PIP_EXTRA_URL \
+    pip install -r /tmp/requirements.txt --extra-index-url $(cat /run/secrets/PIP_EXTRA_URL)
 
 RUN mkdir /app
 COPY . /app
@@ -57,8 +66,8 @@ WORKDIR /app
 CMD ["python", "main.py"]
 ```
 
-Looking at the Dockerfile, you will notice `PIP_EXTRA_URL` argument we will require during the build phase. The argument is then passed to our `pip` command as "--extra-index-url"
-
+Looking at the Dockerfile, you will notice `PIP_EXTRA_URL` secret that will be mounted during the build phase. 
+The argument is then passed to our `pip` command as "--extra-index-url"
 
 ### Getting the artifactory URL
 
@@ -75,14 +84,19 @@ The next step is to get the artifactory URL with an authentication token. We wil
         echo "##vso[task.setvariable variable=artifactoryUrl;]$PIP_EXTRA_INDEX_URL"
       displayName: Export Artifactory URL
 ```
-Two things to note here: 
+
+_If you intend to connect to the feed not through AzDO proxy but directly, replace `artifactFeeds` with `pythonDownloadServiceConnections`._
+
+Two things to note here:
 
 - We are explicitly saying, we want our artifactory added as an extra index by specifying: `onlyAddExtraIndex: true`.
 - We are exporting the `PIP_EXTRA_INDEX_URL` to a variable called `artifactoryUrl`. We will use this variable in the next step.
 
+
 ### Building and publishing our Docker images
 
 The final step is to start the Docker build task:
+
 ```yaml
     - task: Docker@2
       displayName: Build an image
@@ -90,10 +104,14 @@ The final step is to start the Docker build task:
         command: build
         repository: $(imageRepository)
         containerRegistry: $(dockerRegistryServiceConnection)
-        arguments: --build-arg PIP_EXTRA_URL="$(artifactoryUrl)"
+        arguments: --secret id=PIP_EXTRA_URL
         tags: |
           $(tag)
+      env:
+        PIP_EXTRA_URL: $(artifactoryUrl)
+        DOCKER_BUILDKIT: 1
 ```
+
 Here, we are finally passing `artifactoryUrl` to our Docker build. At this moment, the only thing left is to push our image to the container registry.
 
 ```yaml
@@ -106,7 +124,6 @@ Here, we are finally passing `artifactoryUrl` to our Docker build. At this momen
         tags: |
           $(tag)
 ```
-
 
 ## Final pipeline code
 
@@ -155,9 +172,12 @@ stages:
         command: build
         repository: $(imageRepository)
         containerRegistry: $(dockerRegistryServiceConnection)
-        arguments: --build-arg PIP_EXTRA_URL="$(artifactoryUrl)"
+        arguments: --secret id=PIP_EXTRA_URL
         tags: |
           $(tag)
+      env:
+        PIP_EXTRA_URL: $(artifactoryUrl)
+        DOCKER_BUILDKIT: 1
 
     - task: Docker@2
       displayName: Push the image to container registry

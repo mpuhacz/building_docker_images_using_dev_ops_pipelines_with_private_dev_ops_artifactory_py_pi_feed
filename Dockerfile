@@ -3,7 +3,9 @@ FROM python:3.7-slim
 ARG PIP_EXTRA_URL
 
 COPY requirements.txt /tmp/
-RUN pip install -r /tmp/requirements.txt --extra-index-url $PIP_EXTRA_URL
+
+RUN --mount=type=secret,id=PIP_EXTRA_URL \
+    pip install -r /tmp/requirements.txt --extra-index-url $(cat /run/secrets/PIP_EXTRA_URL)
 
 RUN mkdir /app
 COPY . /app
